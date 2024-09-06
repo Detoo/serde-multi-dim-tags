@@ -47,19 +47,36 @@ struct OpenOrder {
 }
 
 fn main() {
-    let message = MessageTopic::Market(MessageEvent::Snapshot(MarketData {
-        markets: vec![MarketStats {
-            ticker: "BTC/USD".to_string(),
-            price: 1_000_000.0,
-            volume: 1_000.0,
-        }],
-    }));
+    let raw_messages = vec![
+        r#"{"topic":"market","event":"snapshot","markets":[{"ticker":"BTC/USD","price":1000000,"volume":1000},{"ticker":"ETH/USD","price":10000,"volume":10000}]}"#,
+        r#"{"topic":"portfolio","event":"snapshot","open_orders":[{"id":0,"side":"sell","ticker":"BTC/USD","limit_price":1100000}]}"#,
+        r#"{"topic":"market","event":"update","markets":[{"ticker":"BTC/USD","price":1000001,"volume":1001}]}"#,
+        r#"{"topic":"portfolio","event":"update","open_orders":[{"id":1,"side":"buy","ticker":"ETH/USD","limit_price":9000}]}"#,
+    ];
 
-    let serialized_message = serde_json::to_string(&message).unwrap();
-    println!("{}", serialized_message);
+    let mut message_stream = raw_messages
+        .into_iter()
+        .map(|message| serde_json::from_str::<MessageTopic>(message));
 
-    assert_eq!(
-        serde_json::from_str::<MessageTopic>(&serialized_message).unwrap(),
-        message
-    );
+    while let Some(message) = message_stream.next() {
+        match message {
+            Ok(MessageTopic::Market(MessageEvent::Snapshot(market_data))) => {
+                println!("Got market snapshot: {:?}", market_data);
+            }
+            Ok(MessageTopic::Market(MessageEvent::Update(market_data))) => {
+                println!("Got market update: {:?}", market_data);
+            }
+            Ok(MessageTopic::Portfolio(MessageEvent::Snapshot(portfolio_data))) => {
+                println!("Got portfolio snapshot: {:?}", portfolio_data);
+            }
+            Ok(MessageTopic::Portfolio(MessageEvent::Update(portfolio_data))) => {
+                println!("Got portfolio update: {:?}", portfolio_data);
+            }
+            Err(result) => println!("Unexpected message: {:?}", result),
+            // TODO Uncomment this if there are other message variants you want to ignore
+            // _ => {
+            //     println!("Ignoring message: {:?}", message);
+            // }
+        }
+    }
 }
