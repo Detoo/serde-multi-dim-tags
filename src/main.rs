@@ -10,8 +10,8 @@ enum MessageTopic {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "event", rename_all = "camelCase")]
 enum MessageEvent<T> {
-    Snapshot(T),
-    Update(T),
+    Snapshot(Message<T>),
+    Update(Message<T>),
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -19,6 +19,13 @@ enum MessageEvent<T> {
 enum Side {
     Buy,
     Sell,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct Message<T> {
+    nonce: i64,
+    #[serde(flatten)]
+    payload: T,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -47,12 +54,15 @@ struct OpenOrder {
 }
 
 fn main() {
-    let message = MessageTopic::Market(MessageEvent::Snapshot(MarketData {
-        markets: vec![MarketStats {
-            ticker: "BTC/USD".to_string(),
-            price: 1_000_000.0,
-            volume: 1_000.0,
-        }],
+    let message = MessageTopic::Market(MessageEvent::Snapshot(Message {
+        nonce: 0,
+        payload: MarketData {
+            markets: vec![MarketStats {
+                ticker: "BTC/USD".to_string(),
+                price: 1_000_000.0,
+                volume: 1_000.0,
+            }],
+        },
     }));
 
     let serialized_message = serde_json::to_string(&message).unwrap();
